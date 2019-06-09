@@ -1,3 +1,10 @@
 .Rhistory
 .RData
 .Rproj.user
+.DS_store
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
