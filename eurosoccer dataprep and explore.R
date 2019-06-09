@@ -78,7 +78,7 @@ points1  <- matchdb %>%
   ## add leading zero to stage for easier sorting later
   mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
   select(-stage) %>%
-  rename(stage = stage_chr)
+  rename(stage = stage_chr) %>%
 
 # create fields for home, away & total goals, home v away goal diff
   mutate(points_home = case_when(home_team_goal > away_team_goal ~ 3,
