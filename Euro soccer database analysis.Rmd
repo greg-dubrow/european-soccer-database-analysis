@@ -137,6 +137,24 @@ glimpse(goalspoints)
 
 ```
 
+How about some charts & graphs?
+```{r charts & graphs, ECHO = FALSE}
+goalspoints %>%
+  select(league, season, gpgs_total) %>%
+  distinct(league, season, .keep_all = TRUE) %>%
+  ggplot(aes(x = season, y = gpgs_total)) +
+  geom_line(group = 1) +
+  geom_point() +
+  ylim(0, 4) +
+  labs(x = "Seasons 2008-09 to 2015-16", y = "Total goals per game, per season") +
+  facet_wrap(~ league,  nrow = 4, ncol = 3) +
+  theme_minimal() +
+  theme(axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
+        strip.text = element_text(size = 8),
+        axis.text.x = element_text(size = 5, angle = 45))
+
+```
+
 
 ```{r pressure, include = FALSE, echo=FALSE}
 ## stray code bits maybe for later

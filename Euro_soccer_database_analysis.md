@@ -198,3 +198,23 @@ glimpse(goalspoints)
     ## $ gpgst_total       <dbl> 2.666667, 2.666667, 2.666667, 2.666667, 2.6666…
     ## $ points_home       <dbl> 1, 0, 0, 1, 0, 3, 1, 3, 1, 1, 3, 3, 3, 3, 3, 1…
     ## $ points_away       <dbl> 1, 3, 3, 1, 3, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1…
+
+How about some charts & graphs?
+
+``` r
+goalspoints %>%
+  select(league, season, gpgs_total) %>%
+  distinct(league, season, .keep_all = TRUE) %>%
+  ggplot(aes(x = season, y = gpgs_total)) +
+  geom_line(group = 1) +
+  geom_point() +
+  ylim(0, 4) +
+  labs(x = "Season 2008-09 to 2015-16", y = "Total goals per game, per season") +
+  facet_wrap(~ league,  nrow = 4, ncol = 3) +
+  theme_minimal() +
+  theme(axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
+        strip.text = element_text(size = 8),
+        axis.text.x = element_text(size = 5, angle = 45))
+```
+
+![](Euro_soccer_database_analysis_files/figure-gfm/charts%20&%20graphs-1.png)<!-- -->

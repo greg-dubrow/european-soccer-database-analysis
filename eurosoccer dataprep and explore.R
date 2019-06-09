@@ -31,10 +31,13 @@ glimpse(country)
 glimpse(league)
 glimpse(team)
 
+matchdb %>%
+  count(season)
+
+
 matchdb <- matchdb %>%
-  mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
-  select(-stage) %>%
-  rename(stage = stage_chr)
+  mutate(season2 = str_replace(season, "/20", "-"))
+
 
 match_stg <- matchdb %>%
   tabyl(stage_chr, stage)
@@ -75,6 +78,11 @@ glimpse(matchdb)
 ## create table from matchdb with various goals and points per game columns
 ## create home & away points, total match goals, avg goals per season, stage (by season)
 points1  <- matchdb %>%
+  ## shorten season field
+  mutate(season = str_replace(season, "/20", "-")) %>%
+  select(-season) %>%
+  rename(season = season2) %>%
+
   ## add leading zero to stage for easier sorting later
   mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
   select(-stage) %>%
@@ -138,15 +146,21 @@ glimpse(goalspoints)
 
 # line plot of goals per game by season by league
 goalspoints %>%
+  #filter(league_id == "1729") %>%
   select(league, season, gpgs_total) %>%
   distinct(league, season, .keep_all = TRUE) %>%
-  #filter(league_id == "1729") %>%
   #distinct(season, stage, .keep_all = TRUE) %>%
   ggplot(aes(x = season, y = gpgs_total)) +
   geom_line(group = 1) +
   geom_point() +
   ylim(0, 4) +
-  facet_wrap(~ league)
+  labs(x = "Seasons 2008-09 to 2015-16", y = "Total goals per game, per season") +
+  facet_wrap(~ league,  nrow = 4, ncol = 3) +
+  #facet_grid(league ~ .) +
+  theme_minimal() +
+  theme(axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
+        strip.text = element_text(size = 8),
+        axis.text.x = element_text(size = 5, angle = 45))
 
 # line plot gpg home and away, by season by league. note need to make wide to long to get 2 lines on graphs
 goalspoints %>%
@@ -159,6 +173,7 @@ goalspoints %>%
   ylim(0, 4) +
   facet_wrap(~ league, nrow = 4, ncol = 3)
 
+### gganimate for something?
 
 # Calculate average home team points per game
 home_points <- match_points %>%
