@@ -77,6 +77,7 @@ glimpse(matchdb)
 
 ## create table from matchdb with various goals and points per game columns
 ## create home & away points, total match goals, avg goals per season, stage (by season)
+## later joins to teamall to add team long & short names
 points1  <- matchdb %>%
   ## shorten season field
   mutate(season = str_replace(season, "/20", "-")) %>%
@@ -156,7 +157,7 @@ goalspoints %>%
   ylim(0, 4) +
   labs(title = "Average total goals per game, per season",
        subtitle = "By league, 2008-09 to 2015-16",
-       x = "Seasons 2008-09 to 2015-16", y = "Avg goals per game") +  
+       x = "Season", y = "Avg goals per game") +  
   facet_wrap(~ league,  nrow = 4, ncol = 3) +
   #facet_grid(league ~ .) +
   theme_minimal() +
@@ -170,11 +171,26 @@ goalspoints %>%
   select(league, season, gpgs_home, gpgs_away) %>%
   distinct(league, season, .keep_all = TRUE) %>%
   gather(key = "home_away", value = "gpg", gpgs_home:gpgs_away) %>%
+  mutate(home_away = str_replace(home_away, "gpgs_home", "Home")) %>%
+  mutate(home_away = str_replace(home_away, "gpgs_away", "Away")) %>%
+  mutate(home_away = (factor(home_away, levels = c("Home", "Away")))) %>%
   ggplot(aes(x = season, y = gpg, group = home_away)) +
   geom_line(aes(color = home_away)) +
   geom_point() +
+  scale_colour_manual(values = c("blue", "orange"),
+                      name = "", labels = c("Home", "Away")) +
   ylim(0, 4) +
-  facet_wrap(~ league, nrow = 4, ncol = 3)
+  labs(title = "Average home & away goals per game, per season",
+       subtitle = "By league, 2008-09 to 2015-16. Home = Blue, Away = Orange",
+       x = "Season", y = "Avg goals per game") +  
+  facet_wrap(~ league, nrow = 4, ncol = 3) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 10), plot.subtitle = element_text(size = 9, face = "italic"),
+        legend.position = "none",
+        axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
+        axis.text.x = element_text(size = 5, angle = 45),
+        strip.text = element_text(size = 8))
+  
 
 ### gganimate for something?
 

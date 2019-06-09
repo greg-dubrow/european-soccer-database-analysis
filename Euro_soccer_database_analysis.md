@@ -77,6 +77,7 @@ glimpse(teamall)
 ``` r
 ## create table from matchdb with various goals and points per game columns
 ## create home & away points, total match goals, avg goals per season, stage (by season)
+## later joins to teamall to add team long & short names
 points1  <- matchdb %>%
   ## add leading zero to stage for easier sorting later
   mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
@@ -199,7 +200,10 @@ glimpse(goalspoints)
     ## $ points_home       <dbl> 1, 0, 0, 1, 0, 3, 1, 3, 1, 1, 3, 3, 3, 3, 3, 1…
     ## $ points_away       <dbl> 1, 3, 3, 1, 3, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1…
 
-How about some charts & graphs?
+## How about some charts & graphs?
+
+Let’s start by looking at average goals scored by game, by season, in
+each league. Does any league score more or fewer goals than others?
 
 ``` r
 # First, average total goals per game by season, in each league.
@@ -212,7 +216,7 @@ goalspoints %>%
   ylim(0, 4) +
   labs(title = "Average total goals per game, per season",
        subtitle = "By league, 2008-09 to 2015-16",
-    x = "Seasons 2008-09 to 2015-16", y = "Avg goals per game") +
+       x = "Season", y = "Avg goals per game") +  
   facet_wrap(~ league,  nrow = 4, ncol = 3) +
   theme_minimal() +
   theme(plot.title = element_text(size = 10), plot.subtitle = element_text(size = 9, face = "italic"),
@@ -221,4 +225,34 @@ goalspoints %>%
         strip.text = element_text(size = 8))
 ```
 
-![](Euro_soccer_database_analysis_files/figure-gfm/charts%20&%20graphs-1.png)<!-- -->
+![](Euro_soccer_database_analysis_files/figure-gfm/chart1-1.png)<!-- -->
+
+Ok, now let’s see on averge who scored more…the home or away side
+
+``` r
+goalspoints %>%
+  select(league, season, gpgs_home, gpgs_away) %>%
+  distinct(league, season, .keep_all = TRUE) %>%
+  gather(key = "home_away", value = "gpg", gpgs_home:gpgs_away) %>%
+  mutate(home_away = str_replace(home_away, "gpgs_home", "Home")) %>%
+  mutate(home_away = str_replace(home_away, "gpgs_away", "Away")) %>%
+  mutate(home_away = (factor(home_away, levels = c("Home", "Away")))) %>%
+  ggplot(aes(x = season, y = gpg, group = home_away)) +
+  geom_line(aes(color = home_away)) +
+  geom_point() +
+  scale_colour_manual(values = c("blue", "orange"),
+                      name = "", labels = c("Home", "Away")) +
+  ylim(0, 4) +
+  labs(title = "Average home & away goals per game, per season",
+       subtitle = "By league, 2008-09 to 2015-16. Home = Blue, Away = Orange",
+       x = "Season", y = "Avg goals per game") +  
+  facet_wrap(~ league, nrow = 4, ncol = 3) +
+  theme_minimal() +
+  theme(plot.title = element_text(size = 10), plot.subtitle = element_text(size = 9, face = "italic"),
+        legend.position = "none",
+        axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
+        axis.text.x = element_text(size = 5, angle = 45),
+        strip.text = element_text(size = 8))
+```
+
+![](Euro_soccer_database_analysis_files/figure-gfm/chart2-1.png)<!-- -->
