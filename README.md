@@ -4,4 +4,4 @@ Exploring the European Soccer Database, sourced from Kaggle at https://www.kaggl
 
 Some variable definitions: http://www.football-data.co.uk/notes.txt
 
-Seasons covered are 2008-09 to 2015-16
+Contains team, player and match informaton for 11 European leagues. Seasons covered are 2008-09 to 2015-16
