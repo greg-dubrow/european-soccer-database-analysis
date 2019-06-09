@@ -1,3 +1,6 @@
+## working file to test data prep and visualizations. 
+ # cleaner code in Euro soccer database analysis.Rmd
+
 # data available from https://www.kaggle.com/hugomathien/soccer
 
 ## note - some fields in match are XML and need further parsing. 
@@ -17,7 +20,6 @@ sqlite <- dbDriver("SQLite")
 con <- dbConnect(sqlite,"eurosoccer.sqlite") ## will require full path if not in wd
 
 dbListTables(con)
-dbListTables(con2)
 # create data 
 country <- tbl_df(dbGetQuery(con,"SELECT * FROM Country"))
 league <- tbl_df(dbGetQuery(con,"SELECT * FROM League"))
@@ -25,6 +27,9 @@ team   <- tbl_df(dbGetQuery(con,"SELECT * FROM Team"))
 matchdb  <- tbl_df(dbGetQuery(con,"SELECT * FROM Match"))
 
 glimpse(matchdb)
+glimpse(country)
+glimpse(league)
+glimpse(team)
 
 matchdb <- matchdb %>%
   mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
@@ -61,14 +66,21 @@ teamall <- left_join(team, teamallc, by = "team_api_id") %>%
 
 
 # improve code for https://www.kaggle.com/stephene/home-and-away-form-compared/comments
-# Restrict the objects to columns needed for the analysis
-league <- select(league, id, name, country_id) %>% rename(league_id = id, league_name = name)
-team   <- select(team, team_api_id, team_long_name, team_short_name) 
+# NOT NEEDED Restrict the objects to columns needed for the analysis
+# league <- select(league, id, name, country_id) %>% rename(league_id = id, league_name = name)
+# team   <- select(team, team_api_id, team_long_name, team_short_name) 
 
 glimpse(matchdb)
 
+## create table from matchdb with various goals and points per game columns
 ## create home & away points, total match goals, avg goals per season, stage (by season)
 points1  <- matchdb %>%
+  ## add leading zero to stage for easier sorting later
+  mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
+  select(-stage) %>%
+  rename(stage = stage_chr)
+
+# create fields for home, away & total goals, home v away goal diff
   mutate(points_home = case_when(home_team_goal > away_team_goal ~ 3,
                                 home_team_goal < away_team_goal ~ 0,
                                 home_team_goal == away_team_goal ~ 1)) %>%
@@ -77,7 +89,9 @@ points1  <- matchdb %>%
                                  home_team_goal == away_team_goal ~ 1)) %>%
   mutate(total_goals = home_team_goal + away_team_goal) %>%
   mutate(goaldiff_ha = home_team_goal - away_team_goal) %>%
+    
   rename(match_date = date) %>%
+  
   # compute avg home, away & total goals per game per season
   arrange(league_id, season) %>%
   group_by(league_id, season) %>%
@@ -86,6 +100,7 @@ points1  <- matchdb %>%
   mutate(gpgs_total = round(mean(total_goals), 2)) %>%
   mutate(gdiff_ha_avg = round(mean(goaldiff_ha), 2)) %>%
   ungroup() %>%
+    
   # compute avg home, away & total goals per game per stage per season
   arrange(league_id, season, match_date) %>%
   group_by(league_id, season, stage) %>%
@@ -100,14 +115,15 @@ points1  <- matchdb %>%
          gpgs_home, gpgs_away, gpgs_total, gpgst_home, gpgst_away, gpgst_total,
          points_home, points_away)
 glimpse(points1)
+
 ## add home team names
 points2 <- left_join(points1, teamall, by = c("home_team_api_id" = "team_api_id")) %>%
   rename(home_team_name_l = team_long_name, home_team_name_s = team_short_name,
          home_team_id_fifa = team_fifa_api_id) %>%
   select(-country, -league, -country_id.x, -country_id.y)
 
-## add away team names
-points3 <- left_join(points2, teamall, by = c("away_team_api_id" = "team_api_id")) %>%
+## add away team names and finalize order and sort
+goalspoints <- left_join(points2, teamall, by = c("away_team_api_id" = "team_api_id")) %>%
   rename(away_team_name_l = team_long_name, away_team_name_s = team_short_name,
          away_team_id_fifa = team_fifa_api_id) %>%
   select(id, league_id, country, league, season, stage, match_api_id, match_date,
@@ -118,10 +134,10 @@ points3 <- left_join(points2, teamall, by = c("away_team_api_id" = "team_api_id"
          points_home, points_away) %>%
   arrange(league_id, season, stage, match_date)
 
-glimpse(points3)
+glimpse(goalspoints)
 
 # line plot of goals per game by season by league
-points3 %>%
+goalspoints %>%
   select(league, season, gpgs_total) %>%
   distinct(league, season, .keep_all = TRUE) %>%
   #filter(league_id == "1729") %>%
@@ -132,8 +148,8 @@ points3 %>%
   ylim(0, 4) +
   facet_wrap(~ league)
 
-# line plot gpg home and away, by season by league. note need to make wide to long
-points3 %>%
+# line plot gpg home and away, by season by league. note need to make wide to long to get 2 lines on graphs
+goalspoints %>%
   select(league, season, gpgs_home, gpgs_away) %>%
   distinct(league, season, .keep_all = TRUE) %>%
   gather(key = "home_away", value = "gpg", gpgs_home:gpgs_away) %>%
