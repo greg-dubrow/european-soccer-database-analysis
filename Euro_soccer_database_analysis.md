@@ -202,6 +202,7 @@ glimpse(goalspoints)
 How about some charts & graphs?
 
 ``` r
+# First, average total goals per game by season, in each league.
 goalspoints %>%
   select(league, season, gpgs_total) %>%
   distinct(league, season, .keep_all = TRUE) %>%
@@ -209,12 +210,14 @@ goalspoints %>%
   geom_line(group = 1) +
   geom_point() +
   ylim(0, 4) +
-  labs(x = "Season 2008-09 to 2015-16", y = "Total goals per game, per season") +
+  labs(title = "Average total goals per game, per season per league, 2008-09 to 2015-16",
+    x = "Seasons 2008-09 to 2015-16", y = "Avg goals/game") +
   facet_wrap(~ league,  nrow = 4, ncol = 3) +
   theme_minimal() +
-  theme(axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
-        strip.text = element_text(size = 8),
-        axis.text.x = element_text(size = 5, angle = 45))
+  theme(title = element_text(size = 10),
+        axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
+        axis.text.x = element_text(size = 5, angle = 45),
+        strip.text = element_text(size = 8))
 ```
 
 ![](Euro_soccer_database_analysis_files/figure-gfm/charts%20&%20graphs-1.png)<!-- -->
