@@ -1,0 +1,62 @@
+---
+title: "European Soccer database analysis"
+author: "greg dubrow"
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r pkg load, include = FALSE, ECHO = FALSE}
+
+library(tidyverse)
+library(RSQLite)
+library(janitor)
+library(usethis)
+library(knitr)
+```
+
+European soccer data set sourced from Kaggle at https://www.kaggle.com/hugomathien/soccer
+Some variable definitions: http://www.football-data.co.uk/notes.txt
+
+First stage of analysis will look at match data. Challenge here is to merge the more descriptive league and team information into the match set, and derive new variables such as average goals scored per game, per season, per stage in season.
+
+```{r data load and prep output, ECHO = FALSE}
+
+# set driver and establish connection to sqlite database
+sqlite <- dbDriver("SQLite")
+con <- dbConnect(sqlite,"eurosoccer.sqlite") ## will require full path if not in wd
+
+# list tables in db
+dbListTables(con)
+
+# create dataframes to use in inital analysis
+country <- tbl_df(dbGetQuery(con,"SELECT * FROM Country"))
+league <- tbl_df(dbGetQuery(con,"SELECT * FROM League"))
+team   <- tbl_df(dbGetQuery(con,"SELECT * FROM Team"))
+matchdb  <- tbl_df(dbGetQuery(con,"SELECT * FROM Match"))
+
+glimpse(country)
+glimpse(league)
+glimpse(team)
+glimpse(matchdb)
+
+
+
+```
+
+
+```{r pressure, include = FALSE, echo=FALSE}
+
+
+#  kable()
+
+## Including Plots
+#You can also embed plots, for example:
+#plot(pressure)
+
+#Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that #generated the plot.
+```

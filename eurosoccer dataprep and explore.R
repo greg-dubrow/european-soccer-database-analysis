@@ -8,8 +8,8 @@ library(RSQLite)
 library(janitor)
 library(usethis)
 
-proj_set()
-usethis::use_git()
+#proj_set()
+#usethis::use_git()
 
 sqlite <- dbDriver("SQLite")
 
