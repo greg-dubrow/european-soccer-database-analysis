@@ -149,7 +149,7 @@ goalspoints %>%
   geom_point() +
   ylim(0, 4) +
   labs(title = "Average total goals per game, per season per league, 2008-09 to 2015-16",
-    x = "Seasons 2008-09 to 2015-16", y = "Avg goals/game") +
+    x = "Seasons 2008-09 to 2015-16", y = "Avg goals per game") +
   facet_wrap(~ league,  nrow = 4, ncol = 3) +
   theme_minimal() +
   theme(title = element_text(size = 10),
