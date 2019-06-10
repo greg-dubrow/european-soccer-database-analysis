@@ -7,6 +7,7 @@
   # see https://www.kaggle.com/hugomathien/soccer/discussion/44871
 
 library(tidyverse)
+library(lubridate)
 library(RSQLite)
 library(janitor)
 library(usethis)
@@ -33,14 +34,6 @@ glimpse(team)
 
 matchdb %>%
   count(season)
-
-
-matchdb <- matchdb %>%
-  mutate(season2 = str_replace(season, "/20", "-"))
-
-
-match_stg <- matchdb %>%
-  tabyl(stage_chr, stage)
 
 matchdb_select <- matchdb %>%
   filter(match_api_id == 483360)
@@ -75,12 +68,15 @@ teamall <- left_join(team, teamallc, by = "team_api_id") %>%
 
 glimpse(matchdb)
 
+
+
+
 ## create table from matchdb with various goals and points per game columns
 ## create home & away points, total match goals, avg goals per season, stage (by season)
 ## later joins to teamall to add team long & short names
 points1  <- matchdb %>%
   ## shorten season field
-  mutate(season = str_replace(season, "/20", "-")) %>%
+  mutate(season2 = str_replace(season, "/20", "-")) %>%
   select(-season) %>%
   rename(season = season2) %>%
 
@@ -98,8 +94,17 @@ points1  <- matchdb %>%
                                  home_team_goal == away_team_goal ~ 1)) %>%
   mutate(total_goals = home_team_goal + away_team_goal) %>%
   mutate(goaldiff_ha = home_team_goal - away_team_goal) %>%
-    
-  rename(match_date = date) %>%
+   
+  # change match date from chr to date format w/ new name
+  # extract month for both numeric and factor. order factor to start in August
+  mutate(match_date = ymd_hms(date)) %>%
+  mutate(match_month = format(as.Date(match_date), "%m")) %>%
+  mutate(match_month_t = month(match_date, label = TRUE, abbr = FALSE)) %>%
+  mutate(match_month_t = (factor(match_month_t, levels = c("August", "September", "October",
+                                                           "November", "December", "January",
+                                                           "February", "March", "April", "May",
+                                                           "June", "July")))) %>%
+  select(-date) %>%
   
   # compute avg home, away & total goals per game per season
   arrange(league_id, season) %>%
@@ -110,18 +115,30 @@ points1  <- matchdb %>%
   mutate(gdiff_ha_avg = round(mean(goaldiff_ha), 2)) %>%
   ungroup() %>%
     
-  # compute avg home, away & total goals per game per stage per season
+  # compute avg home, away & total goals per game per stage per season & league
   arrange(league_id, season, match_date) %>%
   group_by(league_id, season, stage) %>%
   mutate(gpgst_home = round(mean(home_team_goal), 2)) %>%
   mutate(gpgst_away = round(mean(away_team_goal), 2)) %>%
   mutate(gpgst_total = mean(total_goals)) %>%
   ungroup() %>%
-  
-  select(id, country_id, league_id, season, stage, match_api_id, match_date,
+
+# compute avg home, away & total goals per game per month per season & league
+  arrange(league_id, season, match_month_t) %>%
+  group_by(league_id, season, match_month_t) %>%
+  mutate(gpgm_home = round(mean(home_team_goal), 2)) %>%
+  mutate(gpgm_away = round(mean(away_team_goal), 2)) %>%
+  mutate(gpgm_total = round(mean(total_goals), 2)) %>%
+  ungroup() %>%
+
+## note - above are by league - maybe do overall by season, and see which leagues above/below total avg?  
+    
+  select(id, country_id, league_id, season, stage, match_api_id, 
+         match_date, match_month, match_month_t,
          home_team_api_id, away_team_api_id, 
          home_team_goal, away_team_goal, total_goals, goaldiff_ha, gdiff_ha_avg,
          gpgs_home, gpgs_away, gpgs_total, gpgst_home, gpgst_away, gpgst_total,
+         gpgm_home, gpgm_away, gpgm_total,
          points_home, points_away)
 glimpse(points1)
 
@@ -135,11 +152,13 @@ points2 <- left_join(points1, teamall, by = c("home_team_api_id" = "team_api_id"
 goalspoints <- left_join(points2, teamall, by = c("away_team_api_id" = "team_api_id")) %>%
   rename(away_team_name_l = team_long_name, away_team_name_s = team_short_name,
          away_team_id_fifa = team_fifa_api_id) %>%
-  select(id, league_id, country, league, season, stage, match_api_id, match_date,
+  select(id, league_id, country, league, season, stage, match_api_id, 
+         match_date, match_month, match_month_t,
          home_team_api_id, home_team_name_l, home_team_name_s, home_team_id_fifa,
          away_team_api_id, away_team_name_l, away_team_name_s, away_team_id_fifa, 
          home_team_goal, away_team_goal, total_goals, goaldiff_ha, gdiff_ha_avg,
          gpgs_home, gpgs_away, gpgs_total, gpgst_home, gpgst_away, gpgst_total,
+         gpgm_home, gpgm_away, gpgm_total,
          points_home, points_away) %>%
   arrange(league_id, season, stage, match_date)
 
@@ -190,7 +209,9 @@ goalspoints %>%
         axis.title.x = element_text(size = 9), axis.title.y = element_text(size = 9),
         axis.text.x = element_text(size = 5, angle = 45),
         strip.text = element_text(size = 8))
-  
+
+## plot goals per stage per season & league
+## plot goals per month per season & league
 
 ### gganimate for something?
 
@@ -199,6 +220,7 @@ home_points <- match_points %>%
   select(league_id, team_api_id = home_team_api_id, home_team_points) %>%
   group_by(league_id, team_api_id) %>%
   summarize(avg_home_ppg = mean(home_team_points))
+
 
 # Calculate average away team points per game
 away_points <- match_points %>%

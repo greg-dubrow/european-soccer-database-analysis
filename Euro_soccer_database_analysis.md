@@ -3,6 +3,16 @@ European Soccer database analysis
 greg dubrow
 June 09, 2019
 
+``` r
+# load the packages used for loading, cleaing & visualization
+library(tidyverse)
+library(lubridate)
+library(RSQLite)
+library(janitor)
+library(usethis)
+library(knitr)
+```
+
 European soccer data set sourced from Kaggle at
 <https://www.kaggle.com/hugomathien/soccer> Some variable definitions:
 <http://www.football-data.co.uk/notes.txt>
@@ -79,6 +89,11 @@ glimpse(teamall)
 ## create home & away points, total match goals, avg goals per season, stage (by season)
 ## later joins to teamall to add team long & short names
 points1  <- matchdb %>%
+  ## shorten season field
+  mutate(season2 = str_replace(season, "/20", "-")) %>%
+  select(-season) %>%
+  rename(season = season2) %>%
+
   ## add leading zero to stage for easier sorting later
   mutate(stage_chr = str_pad(stage, width=2, side="left", pad="0")) %>%
   select(-stage) %>%
@@ -93,8 +108,17 @@ points1  <- matchdb %>%
                                  home_team_goal == away_team_goal ~ 1)) %>%
   mutate(total_goals = home_team_goal + away_team_goal) %>%
   mutate(goaldiff_ha = home_team_goal - away_team_goal) %>%
-    
-  rename(match_date = date) %>%
+   
+  # change match date from chr to date format w/ new name
+  # extract month for both numeric and factor. order factor to start in August
+  mutate(match_date = ymd_hms(date)) %>%
+  mutate(match_month = format(as.Date(match_date), "%m")) %>%
+  mutate(match_month_t = month(match_date, label = TRUE, abbr = FALSE)) %>%
+  mutate(match_month_t = (factor(match_month_t, levels = c("August", "September", "October",
+                                                           "November", "December", "January",
+                                                           "February", "March", "April", "May",
+                                                           "June", "July")))) %>%
+  select(-date) %>%
   
   # compute avg home, away & total goals per game per season
   arrange(league_id, season) %>%
@@ -105,31 +129,45 @@ points1  <- matchdb %>%
   mutate(gdiff_ha_avg = round(mean(goaldiff_ha), 2)) %>%
   ungroup() %>%
     
-  # compute avg home, away & total goals per game per stage per season
+  # compute avg home, away & total goals per game per stage per season & league
   arrange(league_id, season, match_date) %>%
   group_by(league_id, season, stage) %>%
   mutate(gpgst_home = round(mean(home_team_goal), 2)) %>%
   mutate(gpgst_away = round(mean(away_team_goal), 2)) %>%
   mutate(gpgst_total = mean(total_goals)) %>%
   ungroup() %>%
-  
-  select(id, country_id, league_id, season, stage, match_api_id, match_date,
+
+# compute avg home, away & total goals per game per month per season & league
+  arrange(league_id, season, match_month_t) %>%
+  group_by(league_id, season, match_month_t) %>%
+  mutate(gpgm_home = round(mean(home_team_goal), 2)) %>%
+  mutate(gpgm_away = round(mean(away_team_goal), 2)) %>%
+  mutate(gpgm_total = round(mean(total_goals), 2)) %>%
+  ungroup() %>%
+
+## note - above are by league - maybe do overall by season, and see which leagues above/below total avg?  
+    
+  select(id, country_id, league_id, season, stage, match_api_id, 
+         match_date, match_month, match_month_t,
          home_team_api_id, away_team_api_id, 
          home_team_goal, away_team_goal, total_goals, goaldiff_ha, gdiff_ha_avg,
          gpgs_home, gpgs_away, gpgs_total, gpgst_home, gpgst_away, gpgst_total,
+         gpgm_home, gpgm_away, gpgm_total,
          points_home, points_away)
 glimpse(points1)
 ```
 
     ## Observations: 25,979
-    ## Variables: 22
+    ## Variables: 27
     ## $ id               <int> 2, 3, 5, 7, 8, 9, 1, 4, 101, 102, 104, 105, 106…
     ## $ country_id       <int> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
     ## $ league_id        <int> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,…
-    ## $ season           <chr> "2008/2009", "2008/2009", "2008/2009", "2008/20…
+    ## $ season           <chr> "2008-09", "2008-09", "2008-09", "2008-09", "20…
     ## $ stage            <chr> "01", "01", "01", "01", "01", "01", "01", "01",…
     ## $ match_api_id     <int> 492474, 492475, 492477, 492479, 492480, 492481,…
-    ## $ match_date       <chr> "2008-08-16 00:00:00", "2008-08-16 00:00:00", "…
+    ## $ match_date       <dttm> 2008-08-16, 2008-08-16, 2008-08-16, 2008-08-16…
+    ## $ match_month      <chr> "08", "08", "08", "08", "08", "08", "08", "08",…
+    ## $ match_month_t    <ord> August, August, August, August, August, August,…
     ## $ home_team_api_id <int> 10000, 9984, 7947, 9999, 4049, 10001, 9987, 999…
     ## $ away_team_api_id <int> 9994, 8635, 9985, 8571, 9996, 9986, 9993, 9998,…
     ## $ home_team_goal   <int> 0, 0, 1, 2, 1, 1, 1, 5, 2, 3, 1, 4, 3, 2, 1, 3,…
@@ -143,6 +181,9 @@ glimpse(points1)
     ## $ gpgst_home       <dbl> 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33,…
     ## $ gpgst_away       <dbl> 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33,…
     ## $ gpgst_total      <dbl> 2.666667, 2.666667, 2.666667, 2.666667, 2.66666…
+    ## $ gpgm_home        <dbl> 1.72, 1.72, 1.72, 1.72, 1.72, 1.72, 1.72, 1.72,…
+    ## $ gpgm_away        <dbl> 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12,…
+    ## $ gpgm_total       <dbl> 2.84, 2.84, 2.84, 2.84, 2.84, 2.84, 2.84, 2.84,…
     ## $ points_home      <dbl> 1, 0, 0, 1, 0, 3, 1, 3, 1, 3, 3, 3, 3, 3, 1, 3,…
     ## $ points_away      <dbl> 1, 3, 3, 1, 3, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,…
 
@@ -157,11 +198,13 @@ points2 <- left_join(points1, teamall, by = c("home_team_api_id" = "team_api_id"
 goalspoints <- left_join(points2, teamall, by = c("away_team_api_id" = "team_api_id")) %>%
   rename(away_team_name_l = team_long_name, away_team_name_s = team_short_name,
          away_team_id_fifa = team_fifa_api_id) %>%
-  select(id, league_id, country, league, season, stage, match_api_id, match_date,
+  select(id, league_id, country, league, season, stage, match_api_id, 
+         match_date, match_month, match_month_t,
          home_team_api_id, home_team_name_l, home_team_name_s, home_team_id_fifa,
          away_team_api_id, away_team_name_l, away_team_name_s, away_team_id_fifa, 
          home_team_goal, away_team_goal, total_goals, goaldiff_ha, gdiff_ha_avg,
          gpgs_home, gpgs_away, gpgs_total, gpgst_home, gpgst_away, gpgst_total,
+         gpgm_home, gpgm_away, gpgm_total,
          points_home, points_away) %>%
   arrange(league_id, season, stage, match_date)
 
@@ -169,15 +212,17 @@ glimpse(goalspoints)
 ```
 
     ## Observations: 25,979
-    ## Variables: 29
+    ## Variables: 34
     ## $ id                <int> 2, 3, 5, 7, 8, 9, 1, 4, 6, 101, 102, 104, 105,…
     ## $ league_id         <int> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…
     ## $ country           <chr> "Belgium", "Belgium", "Belgium", "Belgium", "B…
     ## $ league            <chr> "Belgium Jupiler League", "Belgium Jupiler Lea…
-    ## $ season            <chr> "2008/2009", "2008/2009", "2008/2009", "2008/2…
+    ## $ season            <chr> "2008-09", "2008-09", "2008-09", "2008-09", "2…
     ## $ stage             <chr> "01", "01", "01", "01", "01", "01", "01", "01"…
     ## $ match_api_id      <int> 492474, 492475, 492477, 492479, 492480, 492481…
-    ## $ match_date        <chr> "2008-08-16 00:00:00", "2008-08-16 00:00:00", …
+    ## $ match_date        <dttm> 2008-08-16, 2008-08-16, 2008-08-16, 2008-08-1…
+    ## $ match_month       <chr> "08", "08", "08", "08", "08", "08", "08", "08"…
+    ## $ match_month_t     <ord> August, August, August, August, August, August…
     ## $ home_team_api_id  <int> 10000, 9984, 7947, 9999, 4049, 10001, 9987, 99…
     ## $ home_team_name_l  <chr> "SV Zulte-Waregem", "KSV Cercle Brugge", "FCV …
     ## $ home_team_name_s  <chr> "ZUL", "CEB", "DEN", "ROS", "TUB", "WES", "GEN…
@@ -197,6 +242,9 @@ glimpse(goalspoints)
     ## $ gpgst_home        <dbl> 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33…
     ## $ gpgst_away        <dbl> 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33, 1.33…
     ## $ gpgst_total       <dbl> 2.666667, 2.666667, 2.666667, 2.666667, 2.6666…
+    ## $ gpgm_home         <dbl> 1.72, 1.72, 1.72, 1.72, 1.72, 1.72, 1.72, 1.72…
+    ## $ gpgm_away         <dbl> 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12…
+    ## $ gpgm_total        <dbl> 2.84, 2.84, 2.84, 2.84, 2.84, 2.84, 2.84, 2.84…
     ## $ points_home       <dbl> 1, 0, 0, 1, 0, 3, 1, 3, 1, 1, 3, 3, 3, 3, 3, 1…
     ## $ points_away       <dbl> 1, 3, 3, 1, 3, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1…
 
