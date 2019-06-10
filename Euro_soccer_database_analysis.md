@@ -278,6 +278,8 @@ goalspoints %>%
 Ok, now let’s see on averge who scored more…the home or away side
 
 ``` r
+# line plot gpg home and away, by season by league. 
+# need to transform wide to long to get 2 lines on graphs
 goalspoints %>%
   select(league, season, gpgs_home, gpgs_away) %>%
   distinct(league, season, .keep_all = TRUE) %>%
